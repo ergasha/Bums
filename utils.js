@@ -24,7 +24,7 @@ function updateEnv(variable, value) {
   // Đọc file .env
   fs.readFile(envFilePath, "utf8", (err, data) => {
     if (err) {
-      console.log("Cannot read file .env:", err);
+      console.log("Cannot read .env file:", err);
       return;
     }
     // Tạo hoặc cập nhật biến trong file
@@ -41,7 +41,7 @@ function updateEnv(variable, value) {
       if (err) {
         console.error("Unable to write .env file:", err);
       } else {
-        console.log(`Updated ${variable} to${value}`);
+        console.log(`Updated ${variable} to ${value}`);
       }
     });
   });
@@ -84,7 +84,7 @@ function isExpiredToken(token) {
 
     if (parsedPayload.exp) {
       const expirationDate = DateTime.fromSeconds(parsedPayload.exp).toLocal();
-      this.log(colors.cyan(`Token expires on: ${expirationDate.toFormat("yyyy-MM-dd HH:mm:ss")}`));
+      this.log(colors.cyan(`Tokens expire on: ${expirationDate.toFormat("yyyy-MM-dd HH:mm:ss")}`));
       const isExpired = now > parsedPayload.exp;
       this.log(colors.cyan(`Has the token expired? ${isExpired ? "That's right, you need to change the token" : "No...go full throttle"}`));
       return isExpired;
@@ -93,7 +93,7 @@ function isExpiredToken(token) {
       return false;
     }
   } catch (error) {
-    this.error(colors.red(`Error: ${error.message}`));
+    this.error(colors.red(`Lỗi rồi: ${error.message}`));
     return true;
   }
 }

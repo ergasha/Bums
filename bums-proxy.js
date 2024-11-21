@@ -18,7 +18,7 @@ class Bums {
       Accept: "application/json, text/plain, */*",
       "Accept-Encoding": "gzip, deflate, br",
       "Accept-Language": "en",
-      "Content-Type": "multipart/form-data",
+      // "Content-Type": "multipart/form-data",
       Origin: "https://app.bums.bot",
       Referer: "https://app.bums.bot/",
       "Sec-Ch-Ua": '"Not/A)Brand";v="99", "Google Chrome";v="115", "Chromium";v="115"',
@@ -109,7 +109,7 @@ class Bums {
       }
       return [];
     } catch (error) {
-      this.log(`Error reading file wallet: ${error.message}`, "error");
+      this.log(`Error when reading wallet file: ${error.message}`, "error");
       return [];
     }
   }
@@ -122,7 +122,7 @@ class Bums {
       this.#get_user_agent();
     } catch (error) {
       // console.error("URI Error:", error.message);
-      this.log(`Do not decode query_id, please retrieve query id`,"warning");
+      this.log(`Do not decode query_id, please retrieve query id`, "warning");
     }
   }
 
@@ -168,7 +168,7 @@ class Bums {
       }
     } catch (error) {
       this.proxies = [];
-      this.log(`Error reading proxy file: ${error.message}`, "error");
+      this.log(`Error when reading proxy file: ${error.message}`, "error");
     }
   }
 
@@ -444,7 +444,7 @@ class Bums {
     }
   }
 
-  async finishTask(token, taskId, proxyUrl) {
+  async finishTask(token, taskId, taskInfo, proxyUrl) {
     const url = `${this.baseUrl}/miniapps/api/task/finish_task`;
     const headers = {
       ...this.headers,
@@ -452,10 +452,23 @@ class Bums {
       "Content-Type": "application/x-www-form-urlencoded",
     };
 
+    let episodeCodes = require("./codes.json");
+    const getEpisodeNumber = (name) => {
+      const match = name.match(/Episode (\d+)/);
+      return match ? parseInt(match[1]) : null;
+    };
+
     const params = new URLSearchParams();
     params.append("id", taskId.toString());
-    params.append("_t", Date.now().toString());
+    if (taskInfo && taskInfo.classifyName === "YouTube" && taskInfo.name.includes("Find hidden code")) {
+      const episodeNum = getEpisodeNumber(taskInfo.name);
+      if (episodeNum !== null && episodeCodes[episodeNum]) {
+        params.append("pwd", episodeCodes[episodeNum]);
+        this.log(`Sending code for Episode ${episodeNum}: ${episodeCodes[episodeNum]}`, "info");
+      }
+    }
 
+    params.append("_t", Date.now().toString());
     try {
       const response = await this.makeRequest(
         {
@@ -628,17 +641,17 @@ class Bums {
         this.log("Get daily combo rewards: 2,000,000", "success");
         return { success: true };
       } else {
-        this.log("Error receiving daily combo rewards:" + response.data.msg, "warning");
+        this.log("Error receiving daily combo rewards: " + response.data.msg, "warning");
         return { success: false, error: response.data.msg };
       }
     } catch (error) {
-      this.log("Error receiving daily combo rewards:" + error.message, "error");
+      this.log("Error receiving daily combo rewards: " + error.message, "error");
       return { success: false, error: error.message };
     }
   }
 
   async processTasks(token, proxyUrl) {
-    this.log("Retrieving task list...", "info");
+    this.log("Retrieving the mission list....", "info");
     const taskList = await this.getTaskLists(token, proxyUrl);
 
     if (!taskList.success) {
@@ -650,13 +663,13 @@ class Bums {
       this.log("There are no new missions!", "warning");
       return;
     }
-    const tasks = taskList.tasks.filter((task) => !task.name.includes("Find hidden code") && !settings.SKIP_TASKS.includes(task.id));
+    const tasks = taskList.tasks.filter((task) => !settings.SKIP_TASKS.includes(task.id));
     for (const task of tasks) {
-      this.log(`On duty: ${task.name}`, "info");
-      const result = await this.finishTask(token, task.id, proxyUrl);
+      this.log(`On duty:${task.name}`, "info");
+      const result = await this.finishTask(token, task.id, task, proxyUrl);
 
       if (result.success) {
-        this.log(`Task ${task.name} succeeded | Award:${task.rewardParty}`, "success");
+        this.log(`Task ${task.name} succeeded | Award: ${task.rewardParty}`, "success");
       } else {
         this.log(`The task ${task.id} | could not be completed ${task.name}: not qualified or need to do it yourself`, "warning");
       }
@@ -672,7 +685,7 @@ class Bums {
 
     for (let i = 0; i < energyDistributions.length; i++) {
       const amount = energyDistributions[i];
-      this.log(`Collect times ${i + 1}/10: ${amount} of energy`, "custom");
+      this.log(`Collect times${i + 1}/10: ${amount} energy`, "custom");
 
       const result = await this.collectCoins(token, currentCollectSeqNo, amount, proxyUrl);
 
@@ -681,7 +694,7 @@ class Bums {
         currentCollectSeqNo = result.newCollectSeqNo;
         this.log(`Success! Collected: ${totalCollected}/${energy}`, "success");
       } else {
-        this.log(`Error while collecting: ${result.error}`, "error");
+        this.log(`Error while collecting:${result.error}`, "error");
         break;
       }
 
@@ -694,11 +707,11 @@ class Bums {
   }
 
   async processMineUpgrades(token, currentCoin, proxyUrl) {
-    this.log("Retrieving card list...", "info");
+    this.log("Đang lấy danh sách thẻ...", "info");
     const mineList = await this.getMineList(token, proxyUrl);
 
     if (!mineList.success) {
-      this.log(`Unable to get tag list: ${mineList.error}`, "error");
+      this.log(`Unable to get tag list:${mineList.error}`, "error");
       return;
     }
 
@@ -721,9 +734,9 @@ class Bums {
 
       if (result.success) {
         remainingCoin -= cost;
-        this.log(`Upgrade ID card ${mine.mineId} success| Remaining coin: ${remainingCoin}`, "success");
+        this.log(`Upgrade ID card ${mine.mineId} success | Remaining coin: ${remainingCoin}`, "success");
       } else {
-        this.log(`ID card cannot be upgraded ${mine.mineId}: ${result.error}`, "error");
+        this.log(`Cannot upgrade $ID card{mine.mineId}: ${result.error}`, "error");
         if (result.error?.includes("Insufficient balance")) {
           const gameInfo = await this.getGameInfo(token, proxyUrl);
           if (gameInfo.success) remainingCoin = gameInfo.coin;
@@ -750,13 +763,13 @@ class Bums {
     for (const type of listType) {
       if (+tapInfo[type]?.nextCostCoin > currentCoin) continue;
 
-      this.log(`Upgrading${type} | Cost: ${tapInfo[type]?.nextCostCoin} | Next level: ${tapInfo[type]?.level + 1}`, "info");
+      this.log(`Đang nâng cấp ${type} | Cost: ${tapInfo[type]?.nextCostCoin} | Next level: ${tapInfo[type]?.level + 1}`, "info");
       const result = await this.upgradeTap(token, type, proxyUrl);
       if (result.success) {
         currentCoin -= +tapInfo[type]?.nextCostCoin;
-        this.log(`Successfully upgraded ${type} to level ${tapInfo[type]?.level + 1}`, "success");
+        this.log(`Successfully upgraded ${type} to level${tapInfo[type]?.level + 1}`, "success");
       } else {
-        this.log(`Cannot upgrade${type}: ${result.error}`, "error");
+        this.log(`Cannot upgrade ${type}: ${result.error}`, "error");
       }
       await sleep(3);
     }
@@ -845,13 +858,13 @@ class Bums {
       return;
     }
 
-    this.log(`Taking attendance today${availableDay.days}...`, "info");
+    this.log(`Taking attendance today ${availableDay.days}...`, "info");
     const result = await this.sign(token, proxyUrl);
 
     if (result.success) {
-      this.log(`Attendance day ${availableDay.days}success | Reward: ${availableDay.normal}`, "success");
+      this.log(`Attendance on ${availableDay.days} successful | Award: ${availableDay.normal}`, "success");
     } else {
-      this.log(`Attendance failure:${result.error}`, "error");
+      this.log(`Attendance failed: ${result.error}`, "error");
     }
 
     await sleep(5);
@@ -949,7 +962,7 @@ class Bums {
     const gangList = await this.getGangLists(token, proxyUrl);
 
     if (!gangList.success) {
-      this.log(`Unable to get gang information: ${gangList.error}`, "warning");
+      this.log(`Unable to get cast iron information: ${gangList.error}`, "warning");
       return;
     }
 
@@ -1039,7 +1052,7 @@ class Bums {
         return false;
       }
     } catch (error) {
-      this.log(`It's a mistake: ${error.message}`, "error");
+      this.log(`Error: ${error.message}`, "error");
       return true;
     }
   }
@@ -1069,24 +1082,17 @@ class Bums {
       console.log(`========== Account ${i + 1} | ${firstName + " " + lastName} | ip: ${proxyIP} | Starts in ${timesleep} seconds...==========`.magenta);
       this.set_headers();
       await sleep(timesleep);
-      let token = this.getToken(userId);
-      let needsNewToken = !token || this.isExpired(token);
 
-      if (needsNewToken) {
-        this.log(`Signing in...`, "info");
-        const loginResult = await this.login(initData, "DTJy3oTR", currentProxy);
+      this.log(`Logging in...`, "info");
+      const loginResult = await this.login(initData, "DTJy3oTR", currentProxy);
 
-        if (!loginResult.success) {
-          this.log(`Login failed, need to retrieve query_id: ${loginResult.error}`, "error");
-          return;
-        }
-
-        token = loginResult.token;
-        this.saveToken(userId, token);
-        this.log("Successful login!", "success");
-      } else {
-        this.log("Use existing token...", "info");
+      if (!loginResult.success) {
+        this.log(`Login failed, need to retrieve query_id: ${loginResult.error}`, "error");
+        return;
       }
+
+      let token = loginResult.token;
+      this.log("Log in successfully!", "success");
       await sleep(5);
       await this.processSignIn(token, currentProxy);
       await sleep(5);
@@ -1095,7 +1101,7 @@ class Bums {
       if (settings.DAILY_COMBO) {
         await sleep(5);
         const res = await this.getDailyComboReward(token, currentProxy);
-        if (res?.data?.resultNum == 0) this.log(`Bạn đã nhận combodaily!`, "warning");
+        if (res?.data?.resultNum == 0) this.log(`You have received combodaily!`, "warning");
         else await this.dailyCombo(token, currentProxy);
       }
 
@@ -1120,7 +1126,7 @@ class Bums {
             const collectSeqNo = gameInfo.data.tapInfo.collectInfo.collectSeqNo;
             await this.processEnergyCollection(token, gameInfo.energySurplus, collectSeqNo, currentProxy);
           } else {
-            this.log(`Not enough energy to collect`,"warning");
+            this.log(`Not enough energy to collect`, "warning");
           }
         }
         if (settings.AUTO_UPGRADE_TAP) {
@@ -1136,7 +1142,7 @@ class Bums {
         this.log(`Unable to get game information: ${gameInfo.error}`, "warning");
       }
     } catch (error) {
-      this.log(`Error processing account: ${error.message}`, "error");
+      this.log(`Account processing error:${error.message}`, "error");
       return;
     }
   }
@@ -1162,7 +1168,7 @@ async function main() {
   // const wallets = loadData("wallets.txt");
 
   if (queryIds.length > proxies.length) {
-    console.log("The number of proxies and data must be equal.".red);
+    console.log("Số lượng proxy và data phải bằng nhau.".red);
     console.log(`Data: ${queryIds.length}`);
     console.log(`Proxy: ${proxies.length}`);
     process.exit(1);
@@ -1199,13 +1205,13 @@ async function main() {
               resolve();
             });
             worker.on("error", (error) => {
-              errors.push(`Worker error for account ${currentIndex}: ${error.message}`);
+              errors.push(`Worker error for account${currentIndex}: ${error.message}`);
               //   console.log(`Lỗi worker cho tài khoản ${currentIndex}: ${error.message}`);
               resolve();
             });
             worker.on("exit", (code) => {
               if (code !== 0) {
-                errors.push(`Worker for account ${currentIndex} exits with code:${code}`);
+                errors.push(`Worker for account ${currentIndex} exits with code: ${code}`);
               }
               resolve();
             });
@@ -1229,7 +1235,7 @@ async function main() {
     await sleep(3);
     updateEnv("DAILY_COMBO", "false");
     await sleep(5);
-    console.log("Tool Translated and updated by (https://t.me/D4rkCipherX)".yellow);
+    console.log("Tool Updated and Translated by (https://t.me/D4rkCipherX)".yellow);
     console.log(`=============Complete all accounts=============`.magenta);
     await to.countdown(settings.TIME_SLEEP * 60);
   }

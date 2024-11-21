@@ -102,7 +102,7 @@ class Bums {
       }
       return [];
     } catch (error) {
-      this.log(`Error when reading wallet file: ${error.message}`, "error");
+      this.log(`Error when reading wallet file:${error.message}`, "error");
       return [];
     }
   }
@@ -131,7 +131,7 @@ class Bums {
     for (let i = seconds; i > 0; i--) {
       const timestamp = new Date().toLocaleTimeString();
       readline.cursorTo(process.stdout, 0);
-      process.stdout.write(`[${timestamp}] [*]Wait ${i} seconds to continue...`);
+      process.stdout.write(`[${timestamp}] [*] Wait ${i} seconds to continue...`);
       await new Promise((resolve) => setTimeout(resolve, 1000));
     }
     readline.cursorTo(process.stdout, 0);
@@ -226,7 +226,7 @@ class Bums {
 
     for (let i = 0; i < energyDistributions.length; i++) {
       const amount = energyDistributions[i];
-      this.log(`Collect times${i + 1}/10: ${amount} energy`, "custom");
+      this.log(`Collect times ${i + 1}/10: ${amount} energy`, "custom");
 
       const result = await this.collectCoins(token, currentCollectSeqNo, amount);
 
@@ -235,7 +235,7 @@ class Bums {
         currentCollectSeqNo = result.newCollectSeqNo;
         this.log(`Success! Collected: ${totalCollected}/${energy}`, "success");
       } else {
-        this.log(`Error while collecting:${result.error}`, "error");
+        this.log(`Error while collecting: ${result.error}`, "error");
         break;
       }
 
@@ -343,7 +343,7 @@ class Bums {
     }
   }
 
-  async finishTask(token, taskId) {
+  async finishTask(token, taskId, taskInfo) {
     const url = `${this.baseUrl}/miniapps/api/task/finish_task`;
     const headers = {
       ...this.headers,
@@ -351,8 +351,23 @@ class Bums {
       "Content-Type": "application/x-www-form-urlencoded",
     };
 
+    // const episodeCodes = load
+    let episodeCodes = require("./codes.json");
+    const getEpisodeNumber = (name) => {
+      const match = name.match(/Episode (\d+)/);
+      return match ? parseInt(match[1]) : null;
+    };
+
     const params = new URLSearchParams();
     params.append("id", taskId.toString());
+    if (taskInfo && taskInfo.classifyName === "YouTube" && taskInfo.name.includes("Find hidden code")) {
+      const episodeNum = getEpisodeNumber(taskInfo.name);
+      if (episodeNum !== null && episodeCodes[episodeNum]) {
+        params.append("pwd", episodeCodes[episodeNum]);
+        this.log(`Sending code for Episode ${episodeNum}: ${episodeCodes[episodeNum]}`, "info");
+      }
+    }
+
     params.append("_t", Date.now().toString());
 
     try {
@@ -368,10 +383,10 @@ class Bums {
   }
 
   async processTasks(token) {
-    this.log("Đang lấy danh sách nhiệm vụ...", "info");
+    this.log("Retrieving task list...", "info");
     const taskList = await this.getTaskLists(token);
     if (!taskList.success) {
-      this.log(`Unable to get task list:${taskList.error}`, "error");
+      this.log(`Unable to get task list: ${taskList.error}`, "error");
       return;
     }
 
@@ -379,10 +394,12 @@ class Bums {
       this.log("There are no new missions!", "warning");
       return;
     }
-    const tasks = taskList.tasks.filter((task) => !task.name.includes("Find hidden code") && !settings.SKIP_TASKS.includes(task.id));
+    const tasks = taskList.tasks.filter((task) => !settings.SKIP_TASKS.includes(task.id));
+    // const tasksVer
     for (const task of tasks) {
-      this.log(`On duty: ${task.name}`, "info");
-      const result = await this.finishTask(token, task.id);
+      this.log(`On mission: ${task.name}`, "info");
+
+      const result = await this.finishTask(token, task.id, task);
 
       if (result.success) {
         this.log(`Task ${task.name} succeeded | Award: ${task.rewardParty}`, "success");
@@ -544,9 +561,9 @@ class Bums {
 
       if (result.success) {
         remainingCoin -= cost;
-        this.log(`Upgrade ID tag ${mine.mineId} successfully | Remaining coin: ${remainingCoin}`, "success");
+        this.log(`Upgrade ID tag ${mine.mineId} successfully| Remaining coin: ${remainingCoin}`, "success");
       } else {
-        this.log(`ID card cannot be upgraded ${mine.mineId}: ${result.error}`, "error");
+        this.log(`ID card cannot be upgraded${mine.mineId}: ${result.error}`, "error");
         if (result.error?.includes("Insufficient balance")) {
           const gameInfo = await this.getGameInfo(token);
           if (gameInfo.success) remainingCoin = gameInfo.coin;
@@ -573,11 +590,11 @@ class Bums {
     for (const type of listType) {
       if (+tapInfo[type]?.nextCostCoin > currentCoin) continue;
 
-      this.log(`Upgrading ${type} | Cost: ${tapInfo[type]?.nextCostCoin} | Next level: ${tapInfo[type]?.level + 1}`, "info");
+      this.log(`Upgrading${type} | Cost: ${tapInfo[type]?.nextCostCoin} | Next level: ${tapInfo[type]?.level + 1}`, "info");
       const result = await this.upgradeTap(token, type);
       if (result.success) {
         currentCoin -= +tapInfo[type]?.nextCostCoin;
-        this.log(`Successfully upgraded ${type} to level${tapInfo[type]?.level + 1}`, "success");
+        this.log(`Upgrade ${type} Level up successfully ${tapInfo[type]?.level + 1}`, "success");
       } else {
         this.log(`Cannot upgrade${type}: ${result.error}`, "error");
       }
@@ -632,10 +649,10 @@ class Bums {
         this.log(`Unable to authenticate error...retrieving new token...`);
         const loginResult = await this.login(this.queryId, "DTJy3oTR");
         if (!loginResult.success) {
-          this.log(`Login failed, need to retrieve query_id`,"error");
-          throw new Error("Unable to authenticate, need to retrieve query_id");
+          this.log(`Login failed, need to retrieve query_id`, "error");
+          throw new Error("Failed to authenticate, need to retrieve query_id");
         }
-        this.saveToken(this.session_name, loginResult.token);
+        // this.saveToken(this.session_name, loginResult.token);
         retries++;
         response = await axios.get(url, { headers });
       }
@@ -670,18 +687,18 @@ class Bums {
     const signList = await this.getSignLists(token);
 
     if (!signList.success) {
-      this.log(`Unable to get attendance information: ${signList.error}`, "warning");
+      this.log(`Unable to get attendance information:${signList.error}`, "warning");
       return;
     }
 
     const availableDay = signList.lists.find((day) => day.status === 0);
 
     if (!availableDay) {
-      this.log("There are no days when attendance is required!", "warning");
+      this.log("There is no day when attendance is required!", "warning");
       return;
     }
 
-    this.log(`Đang điểm danh ngày ${availableDay.days}...`, "info");
+    this.log(`Taking attendance today ${availableDay.days}...`, "info");
     const result = await this.sign(token);
 
     if (result.success) {
@@ -750,7 +767,7 @@ class Bums {
       "Content-Type": "application/json",
     };
     try {
-      const response = await axios.get(url, formData, { headers });
+      const response = await axios.get(url, { headers });
       if (response.status === 200 && response.data.code === 0) {
         return { success: true };
       } else {
@@ -766,7 +783,7 @@ class Bums {
     const gangList = await this.getGangLists(token);
 
     if (!gangList.success) {
-      this.log(`Unable to get cast iron information: ${gangList.error}`, "error");
+      this.log(`You have successfully joined the Gang!${gangList.error}`, "error");
       return;
     }
 
@@ -815,7 +832,7 @@ class Bums {
         this.log(`Token expires on: ${expirationDate.toFormat("yyyy-MM-dd HH:mm:ss")}`, "custom");
 
         const isExpired = now > parsedPayload.exp;
-        this.log(`Has the token expired? ${isExpired ? "That's right, you need to change the token" : "No..go full throttle"}`, "custom");
+        this.log(`Has the token expired? ${isExpired ? "That's right, you need to change the token" : "No...go full throttle"}`, "custom");
 
         return isExpired;
       } else {
@@ -851,18 +868,18 @@ class Bums {
   }
 
   async main() {
-    console.log(colors.yellow("Tool Updated and Translated by (https://t.me/D4rkCipherX)"));
+    console.log(colors.yellow("Tool Updated and Translated By (https://t.me/D4rkCipherX)"));
 
     const dataFile = path.join(__dirname, "data.txt");
     if (!fs.existsSync(dataFile)) {
-      this.log("File data.txt not found!", "error");
+      this.log("Data.txt file not found!", "error");
       return;
     }
 
     const data = fs.readFileSync(dataFile, "utf8").replace(/\r/g, "").split("\n").filter(Boolean);
 
     if (data.length === 0) {
-      this.log("File data.txt is empty!","error");
+      this.log("File data.txt is empty!", "error");
       return;
     }
 
@@ -879,28 +896,22 @@ class Bums {
           const lastName = userData.last_name || "";
           this.session_name = userId;
 
-          console.log(`========== Account${i + 1}/${data.length} | ${firstName + " " + lastName} ==========`.magenta);
+          console.log(`========== Account ${i + 1}/${data.length} | ${firstName + " " + lastName} ==========`.magenta);
           this.set_headers();
 
-          let token = this.getToken(userId);
-          let needsNewToken = !token || this.isExpired(token);
+          // let token = this.getToken(userId);
+          // let needsNewToken = !token || this.isExpired(token);
 
-          if (needsNewToken) {
-            this.log(`Signing in...`, "info");
-            const loginResult = await this.login(initData, "DTJy3oTR");
+          this.log(`Đang đăng nhập...`, "info");
+          const loginResult = await this.login(initData, "DTJy3oTR");
 
-            if (!loginResult.success) {
-              this.log(`Login failed, query_id may need to be retrieved: ${loginResult.error}`, "error");
-              continue;
-            }
-
-            token = loginResult.token;
-            this.saveToken(userId, token);
-            this.log("Log in successfully!", "success");
-          } else {
-            this.log("Use existing token...", "info");
+          if (!loginResult.success) {
+            this.log(`Login failed, query_id may need to be retrieved: ${loginResult.error}`, "error");
+            continue;
           }
 
+          this.log("Đăng nhập thành công!", "success");
+          const token = loginResult.token;
           await sleep(5);
           await this.processSignIn(token);
           await sleep(5);

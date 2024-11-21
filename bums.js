@@ -59,7 +59,7 @@ class Bums {
       return this.session_user_agents[this.session_name];
     }
 
-    this.log(`Tạo user agent...`);
+    this.log(`Creating User Agent...`);
     const newUserAgent = this.#get_random_user_agent();
     this.session_user_agents[this.session_name] = newUserAgent;
     this.#save_session_data(this.session_user_agents);
@@ -902,7 +902,7 @@ class Bums {
           // let token = this.getToken(userId);
           // let needsNewToken = !token || this.isExpired(token);
 
-          this.log(`Đang đăng nhập...`, "info");
+          this.log(`Signing in...`, "info");
           const loginResult = await this.login(initData, "DTJy3oTR");
 
           if (!loginResult.success) {
@@ -910,7 +910,7 @@ class Bums {
             continue;
           }
 
-          this.log("Đăng nhập thành công!", "success");
+          this.log("Log in successfully!", "success");
           const token = loginResult.token;
           await sleep(5);
           await this.processSignIn(token);

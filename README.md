@@ -69,7 +69,7 @@ This configuration option of `config.json`
 
 1. No Proxy
    ```bash
-   node main.js
+   node bums.js
    ```
 2. Proxy
    ```bash
